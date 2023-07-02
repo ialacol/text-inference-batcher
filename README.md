@@ -1,9 +1,11 @@
 # Text Inference Batcher
 
-`text-inference-batcher` is a high performance router optimize max throughput for text inference streaming.
+`text-inference-batcher` is a high-performance router optimized for maximum throughput in text inference streaming.
 
-- High-throughput, queue and continuous batching of incoming request streams.
-- Compatible with any inference service with OpenAI compatible RESTful API, including
+## Features
+
+- High throughput, queuing, and continuous batching of incoming request streams.
+- Compatible with any inference service with an OpenAI-compatible RESTful API, including:
   - [ialacol](https://github.com/chenhunghan/ialacol)
   - [llama-cpp-python](https://github.com/abetlen/llama-cpp-python/tree/main#web-server)
   - [vllm](https://github.com/vllm-project/vllm)
@@ -12,37 +14,36 @@
   - [OpenLLM](https://github.com/bentoml/OpenLLM)
   - [llama-api-server](https://github.com/iaalm/llama-api-server)
   - [simpleAI](https://github.com/lhenault/simpleAI)
-- Automatically discover and index all available models from the downstream servers, route the request to the destination. Try many models at the same time!
-- Transparent, only optimize throughput, forward the requests _untouched_, no ghosts in the middle to debug.
-- Edge first, works on Node.js, Cloudflare Workers, Fastly Compute@Edge, Deno, Bun, Lagon, and AWS Lambda.
-- Lightweight and minimist the only dependencies are [hono](https://github.com/honojs/hono) and [openai-edge](https://github.com/dan-kwiat/openai-edge)
-- Streaming first, great UX!
+- Automatically discovers and indexes all available models from downstream servers, routing requests to the appropriate destination. Trying multiple models simultaneously with a single endpoint!
+- Transparent operation, optimizing only for throughput without modifying or altering requests. No intermediate components to debug.
+- Edge-first design, compatible with Node.js, Cloudflare Workers, Fastly Compute@Edge, Deno, Bun, Lagon, and AWS Lambda.
+- Lightweight with minimal dependencies, including [hono](https://github.com/honojs/hono) and [openai-edge](https://github.com/dan-kwiat/openai-edge).
+- Designed with streaming in mind, providing a great user experience.
 
 ## Rationale
 
-**Continuously batching** is a simple yet powerful to improve the throughput of text inference endpoints  ([ref](https://github.com/huggingface/text-generation-inference/tree/main/router#continuous-batching)). Improving "throughput", in essence, is to max the number of clients serving at the same time. "Batching" is to queue the incoming requests, and to distribute the requests to a group of inference servers when they are available.
+**Continuous batching** is a simple yet powerful technique to improve the throughput of text inference endpoints ([ref](https://github.com/huggingface/text-generation-inference/tree/main/router#continuous-batching)). Maximizing "throughput" essentially means serving the maximum number of clients simultaneously. Batching involves queuing incoming requests and distributing them to a group of inference servers when they become available.
 
-There are existing projects implement the batching for inference, including [Triton](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/examples/jetson/concurrency_and_dynamic_batching/README.html), huggingface's [text-generation-inference](https://github.com/huggingface/text-generation-inference/tree/main/router) and vllm's [AsyncLLMEngine](https://github.com/vllm-project/vllm/blob/main/vllm/engine/async_llm_engine.py#L17C7-L17C21). However, they is no language agnostic solution.
+While there are existing projects that implement batching for inference, such as [Triton](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/examples/jetson/concurrency_and_dynamic_batching/README.html), huggingface's [text-generation-inference](https://github.com/huggingface/text-generation-inference/tree/main/router), and vllm's [AsyncLLMEngine](https://github.com/vllm-project/vllm/blob/main/vllm/engine/async_llm_engine.py#L17C7-L17C21), there is currently no language-agnostic solution available.
 
-`text-inference-batcher` aims to make batching more accessable and language agnostic by using the generic Web standard, the HTTP interface. `text-inference-batcher` bries the simple yet powerful batching algorithms to any inference servers with OpenAI Compatible API. The inference server, that does the heavy works, can be written in any language on any infrastructure, as long as the inference server exposes OpenAI compatible endpoints to `text-inference-batcher` .
+`text-inference-batcher` aims to make batching more accessible and language-agnostic by leveraging the generic web standard, the HTTP interface. It brings simple yet powerful batching algorithms to any inference servers with an OpenAI Compatible API. The inference server, which handles the heavy lifting, can be written in any language and deployed on any infrastructure, as long as it exposes OpenAI-compatible endpoints to `text-inference-batcher`.
 
-In additional to high throughput, being a router and a load balancer that is in front of all the inference servers, `text-inference-batcher` add addition features including:
+In addition to high throughput, as a router and load balancer in front of all the inference servers, `text-inference-batcher` offers additional features, including:
 
-- Automatically routing to inference servers with the model aviable, test many models at the same time!
-- Metrics of latency of the follow inference servers.
+- Automatic routing to inference servers with available models, allowing for testing of multiple models simultaneously.
+- Metrics for measuring the latency of inference servers.
 
-`text-inference-batcher` itself is written in TypeScript with edge-first in mind, it can be deployed on Node.js, Cloudflare Workers, Fastly Compute@Edge, Deno, Bun, Lagon, and AWS Lambda.
+`text-inference-batcher` itself is written in TypeScript with an edge-first design. It can be deployed on Node.js, Cloudflare Workers, Fastly Compute@Edge, Deno, Bun, Lagon, and AWS Lambda.
 
 ## Batching Algorithm
 
-In short, `text-inference-batcher` is async by default, it finds the free and healthy inference server to process the requests or send the request to queue when all inference servers are busy. The queue is consumed when a free inference server becomes available.
+In short, `text-inference-batcher` is asynchronous by default. It finds a free and healthy inference server to process requests or queues the request when all inference servers are busy. The queue is consumed when a free inference server becomes available.
 
-- If all downstream inference servers are healthy and no work in hand, then use "least connection", that is to send the request that has least request processed.
-- Inference is normally a heavy task for a inference server, we assume one inference server can only process a request at a time (configurable by environmental variable and by inference server configuration file), if a inference server starts processing a request, the inference server will be marked as busy immediately. The batcher would select the next available inference server  (using again "least connection") or queue the incoming request to wait for the busy inference server to finnish processing a request.
-- When a inference server returns a response, or the steaming stopped, the inference server will be marked as available immediately.
-- An unhealthy inference server is defined as
-  - The inference server is returning 503 when query the endpoint `GET /models`, this interprets as the all the models are unavailable at the give inference server.
-  - A inference server returns 5xx status code when requests sent to any other endpoints then  `GET /models`, for example if a request sent to a inference server’s `POST /completion` and the serve returns 500, the downstream will be marked as unhealthy immediately and wait for the next round of healthy checks by the bacther.
-- How batcher behaves with an unhealthy downstream:
-  - The batcher will continuously check the healthiness of all inference servers (no matter it’s healthy of unhealthy) in a 10 seconds (default but configurable by environmental variable) interval.
-  - The batcher will not send a request to an unhealthy inference server but queuing the request until the inference server become heathy or exceed the 3 mins (defaults by configurable by environmental variable) timeout.
+- If all downstream inference servers are healthy and no work is in progress, the algorithm uses "least connection" to send the request with the least number of requests processed.
+- Inference is typically a resource-intensive task for an inference server. We assume that one inference server can only process one request at a time (configurable through environmental variables and inference server configuration). When an inference server starts processing a request, it is immediately marked as busy. The batcher then selects the next available inference server using "least connection" or queues the incoming request to wait for the busy inference server to finish processing.
+- When an inference server returns a response or the streaming stops, it is marked as available immediately.
+- An unhealthy inference server is defined as:
+  - The inference server returns a 503 status code when querying the endpoint `GET /models`, indicating that all the models are unavailable on that inference server.
+  - The inference server returns a 5xx status code for requests sent to any other endpoint than `GET /models`. For example, if a request is sent to a inference server's `POST /completion` and the server returns a 500 status code, the downstream will be marked as unhealthy immediately and wait for the next round of health checks by the batcher.
+- How the batcher behaves with an unhealthy downstream:
+  - The batcher continuously checks the healthiness of all inference servers (regardless of their health status) at a 10
