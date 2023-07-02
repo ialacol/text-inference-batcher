@@ -1,0 +1,19 @@
+{
+  "name": "text-inference-batcher-nodejs",
+  "version": "0.0.1",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "lint": "eslint **/*.ts",
+    "build": "tsc"
+  },
+  "engines": {
+    "npm": ">=9.0.0",
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.0.1"
+  },
+  "devDependencies": {
+  }
+}

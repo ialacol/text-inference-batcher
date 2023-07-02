@@ -1,0 +1,29 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  // see https://turbo.build/repo/docs/getting-started/existing-monorepo#create-a-pipeline
+  "pipeline": {
+    "build": {
+      // A package's `build` script depends on that package's
+      // dependencies and devDependencies
+      // `build` tasks  being completed first
+      // (the `^` symbol signifies `upstream`).
+      "dependsOn": ["^build"],
+      // note: output globs are relative to each package's `package.json`
+      // (and not the monorepo root)
+      "outputs": ["dist/**", "build/**"],
+      "outputMode": "new-only"
+    },
+    // A package's `lint` script has no dependencies and
+    // can be run whenever. It also has no filesystem outputs.
+    "start": {},
+    // A package's `lint` script has no dependencies and
+    // can be run whenever. It also has no filesystem outputs.
+    "dev": {},
+    // A package's `lint` script has no dependencies and
+    // can be run whenever. It also has no filesystem outputs.
+    "lint": {},
+    // A package's `test` script has no dependencies and
+    // can be run whenever. It also has no filesystem outputs.
+    "test": {}
+  }
+}

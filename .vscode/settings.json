@@ -1,0 +1,11 @@
+{
+  "eslint.workingDirectories": [
+    { "pattern": "./apps/*/" },
+    { "pattern": "./packages/*/" },
+  ],
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true
+  },
+  "eslint.validate": ["typescript", "typescriptreact", "javascript", "javascriptreact"],
+  "files.insertFinalNewline": true
+}
