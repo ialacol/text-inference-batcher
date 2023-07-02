@@ -1,0 +1,35 @@
+{
+  "name": "text-inference-batcher",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "npm": ">=9.0.0"
+  },
+  "scripts": {
+    "start": "turbo start",
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "turbo test"
+  },
+  "dependencies": {
+    "hono": "^3.2.6",
+    "openai-edge": "^1.1.0"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.60.1",
+    "@typescript-eslint/parser": "^5.60.1",
+    "eslint": "^8.44.0",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-config-standard-with-typescript": "^35.0.0",
+    "eslint-config-turbo": "^1.10.7",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-n": "^15.7.0",
+    "eslint-plugin-promise": "^6.1.1",
+    "tsx": "^3.12.2",
+    "turbo": "^1.10.7",
+    "typescript": "^5.1.3"
+  }
+}
