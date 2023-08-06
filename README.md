@@ -35,6 +35,16 @@ In addition to high throughput, as a router and load balancer in front of all th
 
 `text-inference-batcher` itself is written in TypeScript with an edge-first design. It can be deployed on Node.js, Cloudflare Workers, Fastly Compute@Edge, Deno, Bun, Lagon, and AWS Lambda.
 
+## Terminology
+
+### Downstream
+
+We are using the same definition of `downstream` from [envoy](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/intro/terminology) or [nginx](https://stackoverflow.com/questions/32364579/upstream-downstream-terminology-used-backwards-e-g-nginx). That is, a `downstream` host connects to `text-inference-batcher`, sends requests, and receives responses. For example, a Python app using OpenAI Python library to send requests to `text-inference-batcher` is a downstream.
+
+### Upstream
+
+We are using the same definition of `upstream` from [envoy](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/intro/terminology) or [nginx](https://nginx.org/en/docs/http/ngx_http_upstream_module.html). That is, an `upstream` host receives connections and requests from `text-inference-batcher` and returns responses. An OpenAI API compatible API server, for example [ialacol](https://github.com/chenhunghan/ialacol) is a `upstream`.
+
 ## Batching Algorithm
 
 In short, `text-inference-batcher` is asynchronous by default. It finds a free and healthy inference server to process requests or queues the request when all inference servers are busy. The queue is consumed when a free inference server becomes available.
