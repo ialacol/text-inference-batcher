@@ -17,6 +17,8 @@ export const upstreamState = new Array<{
 
 export type UpstreamState = typeof upstreamState;
 
+export type Upstream = UpstreamState[number];
+
 /**
  * @returns the upstream(s) filtered by model
  */
@@ -34,10 +36,23 @@ export const push = (item: Parameters<UpstreamState["push"]>[0]): number =>
   upstreamState.push(item);
 
 /**
+ * Update one by index
+ */
+export const updateByIndex = (index: number, item: UpstreamState[number]) => {
+  upstreamState[index] = item;
+};
+
+/**
  * Find an upstream from the state
  */
 export const find = (predict: Parameters<UpstreamState["find"]>[0]): UpstreamState[number] | undefined =>
   upstreamState.find(predict);
+
+/**
+ * Find by index
+ */
+export const findByIndex = (index: number): UpstreamState[number] | undefined =>
+  upstreamState[index];
 
 /**
  * Find an upstream index from the state
@@ -66,3 +81,9 @@ export const getLeastConnection = (model: string): UpstreamState => {
   }, [filtered[0]]);
   return leastConnection;
 };
+
+/**
+ * @returns all upstream models
+ */
+export const getAllModels = () =>
+  upstreamState.map(({ model }) => model);

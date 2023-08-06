@@ -6,7 +6,7 @@ import { HTTPException } from "hono/http-exception";
 import { OpenAIApi, Configuration, type CreateCompletionRequest } from "openai-edge";
 import { parseUpstreamUrls } from "./parseUpstreamUrls";
 import { updateUpstreamState } from "./updateUpstreamState";
-import { upstreamState, filterByModel, getLeastConnection, findIndex } from "./globalState";
+import { filterByModel, getLeastConnection, findIndex, updateByIndex, findByIndex, type Upstream, getAllModels } from "./globalState";
 import { env } from "hono/adapter";
 
 const app = new Hono();
@@ -18,7 +18,7 @@ app.post("/v1/completions", async (context) => {
 
   if (filterByModel(completionRequestBody.model).length === 0) {
     // https://platform.openai.com/docs/guides/error-codes/api-errors
-    throw new HTTPException(503, { message: `No upstream found with ${completionRequestBody.model}, all available models: ${upstreamState.map(({ model }) => model).join(",")}.` });
+    throw new HTTPException(503, { message: `No upstream found with ${completionRequestBody.model}, all available models: ${getAllModels().join(",")}.` });
   }
   const { MAX_CONNECT_PER_UPSTREAM, TIMEOUT } = env<{ MAX_CONNECT_PER_UPSTREAM?: string, TIMEOUT: string }>(context);
   const maxConnection = parseInt(MAX_CONNECT_PER_UPSTREAM ?? "1");
@@ -58,12 +58,13 @@ app.post("/v1/completions", async (context) => {
           apiKey: apiKeyHeader
         });
         const openai = new OpenAIApi(configuration);
-        upstreamState[findIndex(({ id }) => id === selectedUpstream.id)] = {
+        const index = findIndex(({ id }) => id === selectedUpstream.id);
+        updateByIndex(index, {
           ...selectedUpstream,
           last: new Date(),
           used: selectedUpstream.used + 1,
           connections: selectedUpstream.connections + 1
-        };
+        });
         const { body } = await openai.createCompletion(completionRequestBody, { signal });
         if (body === null) {
           controller.close();
@@ -80,11 +81,11 @@ app.post("/v1/completions", async (context) => {
       }
       // reduce the number of connections
       const index = findIndex(({ id }) => id === selectedUpstream.id);
-      const before = upstreamState[index];
-      upstreamState[index] = {
+      const before = findByIndex(index) as Upstream;
+      updateByIndex(index, {
         ...before,
         connections: before.connections - 1
-      };
+      });
     },
     cancel () {
       // This is called if the downstream cancels,
