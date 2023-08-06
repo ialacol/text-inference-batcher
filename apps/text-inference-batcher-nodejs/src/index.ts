@@ -6,28 +6,35 @@ import { HTTPException } from "hono/http-exception";
 import { OpenAIApi, Configuration, type CreateCompletionRequest } from "openai-edge";
 import { parseUpstreamUrls } from "./parseUpstreamUrls";
 import { updateUpstreamState } from "./updateUpstreamState";
-import { upstreamState, filterByModel, getLeastConnection } from "./globalState";
+import { upstreamState, filterByModel, getLeastConnection, findIndex } from "./globalState";
 import { env } from "hono/adapter";
 
 const app = new Hono();
 app.use("*", logger(), cors());
 
 app.post("/v1/completions", async (context) => {
-  await updateUpstreamState(parseUpstreamUrls(context), upstreamState);
+  await updateUpstreamState(parseUpstreamUrls(context));
   const completionRequestBody: CreateCompletionRequest = await context.req.json();
 
   if (filterByModel(completionRequestBody.model).length === 0) {
     // https://platform.openai.com/docs/guides/error-codes/api-errors
     throw new HTTPException(503, { message: `No upstream found with ${completionRequestBody.model}, all available models: ${upstreamState.map(({ model }) => model).join(",")}.` });
   }
-  const { MAX_CONNECT_PER_UPSTREAM } = env<{ MAX_CONNECT_PER_UPSTREAM?: string }>(context);
+  const { MAX_CONNECT_PER_UPSTREAM, TIMEOUT } = env<{ MAX_CONNECT_PER_UPSTREAM?: string, TIMEOUT: string }>(context);
   const maxConnection = parseInt(MAX_CONNECT_PER_UPSTREAM ?? "1");
+  // timeout in milliseconds, default to 10 minutes
+  const timeout = parseInt(TIMEOUT ?? "600000");
+  let waiting = 0;
   // keep waiting if there is no free (connections < MAX_CONNECT_PER_UPSTREAM) upstream with the matching model
   while (
     filterByModel(completionRequestBody.model)
       .filter(({ connections }) => connections < maxConnection).length === 0
   ) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
+    waiting += 1000;
+    if (waiting >= timeout) {
+      throw new HTTPException(503, { message: "Timeout waiting for a free upstream, try again later" });
+    }
   }
 
   // "least connections" load balancing
@@ -51,7 +58,7 @@ app.post("/v1/completions", async (context) => {
           apiKey: apiKeyHeader
         });
         const openai = new OpenAIApi(configuration);
-        upstreamState[upstreamState.findIndex(({ id }) => id === selectedUpstream.id)] = {
+        upstreamState[findIndex(({ id }) => id === selectedUpstream.id)] = {
           ...selectedUpstream,
           last: new Date(),
           used: selectedUpstream.used + 1,
@@ -72,7 +79,7 @@ app.post("/v1/completions", async (context) => {
         controller.error(error);
       }
       // reduce the number of connections
-      const index = upstreamState.findIndex(({ id }) => id === selectedUpstream.id);
+      const index = findIndex(({ id }) => id === selectedUpstream.id);
       const before = upstreamState[index];
       upstreamState[index] = {
         ...before,

@@ -23,6 +23,29 @@ export type UpstreamState = typeof upstreamState;
 export const filterByModel = (model: string): UpstreamState => upstreamState.filter(({ model: upstreamModel }) => upstreamModel === model);
 
 /**
+ * Remove an upstream from the state by index, return the deleted in array
+ */
+export const spliceOneByIndex = (index: number): UpstreamState => upstreamState.splice(index, 1);
+
+/**
+ * Push an upstream to the state
+ */
+export const push = (item: Parameters<UpstreamState["push"]>[0]): number =>
+  upstreamState.push(item);
+
+/**
+ * Find an upstream from the state
+ */
+export const find = (predict: Parameters<UpstreamState["find"]>[0]): UpstreamState[number] | undefined =>
+  upstreamState.find(predict);
+
+/**
+ * Find an upstream index from the state
+ */
+export const findIndex = (predict: Parameters<UpstreamState["findIndex"]>[0]): number =>
+  upstreamState.findIndex(predict);
+
+/**
  * Get a list of upstream by "least connections" load balancing algorithm and matching model
  *
  * @returns the upstream(s) filtered by model and with the least connections\
