@@ -1,72 +1,63 @@
 import { serve } from "@hono/node-server";
-import { type Context, Hono } from "hono";
+import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
+import { HTTPException } from "hono/http-exception";
+import { OpenAIApi, Configuration, type CreateCompletionRequest } from "openai-edge";
+import { parseUpstreamUrls } from "./parseUpstreamUrls";
+import { updateUpstreamState } from "./updateUpstreamState";
+import { upstreamState, filterByModel, getLeastConnection } from "./globalState";
 import { env } from "hono/adapter";
-import { OpenAIApi } from "openai-edge";
-import { type ModelResponse } from "./types";
-
-const downstreamServerState = new Set<{
-  /** the full href of the server including protocol without pathname, e.g. http://llama.svc.default.svc.cluster.local */
-  href: string
-  /** the model that the server have */
-  model: string
-}>();
-
-async function updateDownstreamServerState (context: Context): Promise<void> {
-  const { DOWNSTREAM_SEVERS } = env<{ DOWNSTREAM_SEVERS?: string }>(context);
-  if (DOWNSTREAM_SEVERS === undefined) {
-    throw new Error("DOWNSTREAM_SEVERS is not defined");
-  }
-  const downstreamServers = JSON.parse(DOWNSTREAM_SEVERS);
-  if (!isArray<string>(downstreamServers)) {
-    throw new Error("DOWNSTREAM_SEVERS is not an array");
-  }
-  if (isArray<string>(downstreamServers)) {
-    // not using Promise.all as we want to fail fast
-    for (const server of downstreamServers) {
-      let serverUrl: URL;
-      try {
-        serverUrl = new URL(server);
-      } catch (error) {
-        // URL constructor throws if the URL is invalid
-        // https://developer.mozilla.org/en-US/docs/Web/API/URL/URL
-        throw new Error(`${server} is not a valid URL`, { cause: error });
-      }
-      const serverHref = serverUrl.href;
-
-      const modelResponse = await fetch(`${serverHref}/v1/models`);
-      const modelResponseJson: ModelResponse = await modelResponse.json();
-      for (const model of modelResponseJson.data) {
-        downstreamServerState.add({
-          href: serverHref,
-          model: model.id
-        });
-      }
-    }
-  }
-}
 
 const app = new Hono();
 app.use("*", logger(), cors());
 
-const isArray = <T> (value: unknown): value is T[] => {
-  return Array.isArray(value);
-};
 app.post("/v1/completions", async (context) => {
-  await updateDownstreamServerState(context);
-  const openai = new OpenAIApi();
+  await updateUpstreamState(parseUpstreamUrls(context), upstreamState);
+  const completionRequestBody: CreateCompletionRequest = await context.req.json();
+
+  if (filterByModel(completionRequestBody.model).length === 0) {
+    // https://platform.openai.com/docs/guides/error-codes/api-errors
+    throw new HTTPException(503, { message: `No upstream found with ${completionRequestBody.model}, all available models: ${upstreamState.map(({ model }) => model).join(",")}.` });
+  }
+  const { MAX_CONNECT_PER_UPSTREAM } = env<{ MAX_CONNECT_PER_UPSTREAM?: string }>(context);
+  const maxConnection = parseInt(MAX_CONNECT_PER_UPSTREAM ?? "1");
+  // keep waiting if there is no free (connections < MAX_CONNECT_PER_UPSTREAM) upstream with the matching model
+  while (
+    filterByModel(completionRequestBody.model)
+      .filter(({ connections }) => connections < maxConnection).length === 0
+  ) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+
+  // "least connections" load balancing
+  const leastConnectionUpstream = getLeastConnection(completionRequestBody.model);
+
+  // select the way with the least latency
+  const selectedUpstream = leastConnectionUpstream.reduce((accumulator, currentValue) => {
+    if (currentValue.latency < accumulator.latency) {
+      return currentValue;
+    }
+    return accumulator;
+  });
+
   const { signal, abort } = new AbortController();
   return new Response(new ReadableStream({
     async start (controller) {
       try {
-        const { body } = await openai.createCompletion({
-          model: "gpt-3.5-turbo",
-          prompt: "Once upon a time",
-          max_tokens: 7,
-          temperature: 0,
-          stream: true
-        }, { signal });
+        const apiKeyHeader = context.req.header("OPENAI_API_KEY");
+        const configuration = new Configuration({
+          basePath: `${selectedUpstream.url.href}/v1`,
+          apiKey: apiKeyHeader
+        });
+        const openai = new OpenAIApi(configuration);
+        upstreamState[upstreamState.findIndex(({ id }) => id === selectedUpstream.id)] = {
+          ...selectedUpstream,
+          last: new Date(),
+          used: selectedUpstream.used + 1,
+          connections: selectedUpstream.connections + 1
+        };
+        const { body } = await openai.createCompletion(completionRequestBody, { signal });
         if (body === null) {
           controller.close();
         } else {
@@ -80,10 +71,17 @@ app.post("/v1/completions", async (context) => {
       } catch (error) {
         controller.error(error);
       }
+      // reduce the number of connections
+      const index = upstreamState.findIndex(({ id }) => id === selectedUpstream.id);
+      const before = upstreamState[index];
+      upstreamState[index] = {
+        ...before,
+        connections: before.connections - 1
+      };
     },
     cancel () {
-      // This is called if the reader cancels,
-      // so we should stop the request
+      // This is called if the downstream cancels,
+      // so we should stop the `openai.createCompletion` request to the upstream
       abort();
     }
   }), {
