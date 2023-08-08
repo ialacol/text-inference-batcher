@@ -24,6 +24,7 @@ RUN --mount=type=cache,target=/tmp/.npm \
 # `out/json` containes only changes of source code which are "scoped" to the project.
 COPY --from=pruner /usr/src/app/out/full/ .
 COPY turbo.json turbo.json
+COPY tsconfig.json tsconfig.json
 # `...` means Include dependencies of matched workspaces
 # see https://turbo.build/repo/docs/core-concepts/monorepos/filtering#include-dependencies-of-matched-workspaces
 RUN --mount=type=cache,target=/tmp/.turbo \
