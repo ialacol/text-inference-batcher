@@ -4,8 +4,8 @@
 
 ## Features
 
-- High throughput, queuing, and continuous batching of incoming requests.
-- Compatible with any inference service with an OpenAI-compatible RESTful API, including:
+- Max throughput by queuing, and continuous batching of incoming requests.
+- Compatible with any OpenAI-compatible RESTful API servers, including:
   - [ialacol](https://github.com/chenhunghan/ialacol)
   - [llama-cpp-python](https://github.com/abetlen/llama-cpp-python/tree/main#web-server)
   - [vllm](https://github.com/vllm-project/vllm)
