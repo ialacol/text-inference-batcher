@@ -1,0 +1,9 @@
+node_modules
+npm-debug.log
+.devspace
+.npmrc
+devspace*
+dist
+build
+.DS_Store
+.turbo
