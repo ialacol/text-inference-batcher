@@ -1,10 +1,10 @@
 # Text Inference Batcher
 
-`text-inference-batcher` is a high-performance router optimized for maximum throughput in text inference streaming.
+`text-inference-batcher` is a high-performance router optimized for maximum throughput in text inference workload.
 
 ## Features
 
-- High throughput, queuing, and continuous batching of incoming request streams.
+- High throughput, queuing, and continuous batching of incoming requests.
 - Compatible with any inference service with an OpenAI-compatible RESTful API, including:
   - [ialacol](https://github.com/chenhunghan/ialacol)
   - [llama-cpp-python](https://github.com/abetlen/llama-cpp-python/tree/main#web-server)
@@ -14,7 +14,7 @@
   - [OpenLLM](https://github.com/bentoml/OpenLLM)
   - [llama-api-server](https://github.com/iaalm/llama-api-server)
   - [simpleAI](https://github.com/lhenault/simpleAI)
-- Automatically discovers and indexes all available models from downstream servers, routing requests to the appropriate destination. Trying multiple models simultaneously with a single endpoint!
+- Automatically discovers and indexes all available models from upstream backends, routing requests to the appropriate destination. Trying multiple models simultaneously with a single endpoint!
 - Transparent operation, optimizing only for throughput without modifying or altering requests. No intermediate components to debug.
 - Edge-first design, compatible with Node.js, Cloudflare Workers, Fastly Compute@Edge, Deno, Bun, Lagon, and AWS Lambda.
 - Lightweight with minimal dependencies, including [hono](https://github.com/honojs/hono) and [openai-edge](https://github.com/dan-kwiat/openai-edge).
@@ -49,11 +49,11 @@ We are using the same definition of `upstream` from [envoy](https://www.envoypro
 
 In short, `text-inference-batcher` is asynchronous by default. It finds a free and healthy inference server to process requests or queues the request when all inference servers are busy. The queue is consumed when a free inference server becomes available.
 
-- If all downstream inference servers are healthy and no work is in progress, the algorithm uses "least connection" to send the request with the least number of requests processed.
+- If all upstream backends are healthy and no work is in progress, the algorithm uses "least connection" to send the request with the least number of requests processed.
 - Inference is typically a resource-intensive task for an inference server. We assume that one inference server can only process one request at a time (configurable through environmental variables and inference server configuration). When an inference server starts processing a request, it is immediately marked as busy. The batcher then selects the next available inference server using "least connection" or queues the incoming request to wait for the busy inference server to finish processing.
 - When an inference server returns a response or the streaming stops, it is marked as available immediately.
 - An unhealthy inference server is defined as:
   - The inference server returns a 503 status code when querying the endpoint `GET /models`, indicating that all the models are unavailable on that inference server.
-  - The inference server returns a 5xx status code for requests sent to any other endpoint than `GET /models`. For example, if a request is sent to a inference server's `POST /completion` and the server returns a 500 status code, the downstream will be marked as unhealthy immediately and wait for the next round of health checks by the batcher.
-- How the batcher behaves with an unhealthy downstream:
+  - The inference server returns a 5xx status code for requests sent to any other endpoint than `GET /models`. For example, if a request is sent to a inference server's `POST /completion` and the server returns a 500 status code, the upstream will be marked as unhealthy immediately and wait for the next round of health checks by the batcher.
+- How the batcher behaves with an unhealthy upstream:
   - The batcher continuously checks the healthiness of all inference servers (regardless of their health status) at a 10
