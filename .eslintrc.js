@@ -1,4 +1,5 @@
 module.exports = {
+  ignorePatterns: ["**/dist/*.*"],
   extends: [
     "standard",
     "eslint:recommended",

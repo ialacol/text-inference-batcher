@@ -15,7 +15,9 @@
     },
     // A package's `lint` script has no dependencies and
     // can be run whenever. It also has no filesystem outputs.
-    "start": {},
+    "start": {
+      "dependsOn": ["build"]
+    },
     // A package's `lint` script has no dependencies and
     // can be run whenever. It also has no filesystem outputs.
     "dev": {},
@@ -25,5 +27,8 @@
     // A package's `test` script has no dependencies and
     // can be run whenever. It also has no filesystem outputs.
     "test": {}
-  }
+  },
+  "globalDependencies": [
+    "tsconfig.json" // contents will impact hashes of all tasks
+  ]
 }

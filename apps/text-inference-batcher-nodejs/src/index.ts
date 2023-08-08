@@ -4,9 +4,9 @@ import { logger } from "hono/logger";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { OpenAIApi, Configuration, type CreateCompletionRequest, CreateChatCompletionRequest } from "openai-edge";
-import { parseUpstreamUrls } from "./parseUpstreamUrls";
-import { updateUpstreamState } from "./updateUpstreamState";
-import { filterByModel, getLeastConnection, findIndex, updateByIndex, findByIndex, type Upstream, getAllModels } from "./globalState";
+import { parseUpstreamUrls } from "./parseUpstreamUrls.js";
+import { updateUpstreamState } from "./updateUpstreamState.js";
+import { filterByModel, getLeastConnection, findIndex, updateByIndex, findByIndex, type Upstream, getAllModels } from "./globalState.js";
 import { env } from "hono/adapter";
 
 const app = new Hono();
@@ -196,3 +196,5 @@ serve({
   fetch: app.fetch,
   port: 8000
 });
+
+console.log("Listening on http://localhost:8000");

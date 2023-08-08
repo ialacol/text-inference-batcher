@@ -1,4 +1,4 @@
-import { findIndex, spliceOneByIndex, find, push } from "./globalState";
+import { findIndex, spliceOneByIndex, find, push } from "./globalState.js";
 import { type ListModelsResponse } from "openai-edge";
 
 export async function updateUpstreamState (urls: Set<URL>) {
