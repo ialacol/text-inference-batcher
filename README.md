@@ -5,7 +5,7 @@
 ## Features
 
 - Max throughput by queuing, and continuous batching of incoming requests.
-- Compatible with any OpenAI-compatible RESTful API servers, including:
+- Optimize any backends with OpenAI-compatible API, including:
   - [ialacol](https://github.com/chenhunghan/ialacol)
   - [llama-cpp-python](https://github.com/abetlen/llama-cpp-python/tree/main#web-server)
   - [vllm](https://github.com/vllm-project/vllm)
@@ -14,7 +14,7 @@
   - [OpenLLM](https://github.com/bentoml/OpenLLM)
   - [llama-api-server](https://github.com/iaalm/llama-api-server)
   - [simpleAI](https://github.com/lhenault/simpleAI)
-- Automatically discovers and indexes all available models from upstream backends, routing requests to the appropriate destination. Trying multiple models simultaneously with a single endpoint!
+- Automatically discovers and indexes all available models from upstreams, routing requests to the appropriate destination. Trying multiple models simultaneously with a single entrypoint!
 - Transparent operation, optimizing only for throughput without modifying or altering requests. No intermediate components to debug.
 - Edge-first design, compatible with Node.js, Cloudflare Workers, Fastly Compute@Edge, Deno, Bun, Lagon, and AWS Lambda.
 - Lightweight with minimal dependencies, including [hono](https://github.com/honojs/hono) and [openai-edge](https://github.com/dan-kwiat/openai-edge).
