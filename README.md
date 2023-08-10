@@ -2,6 +2,54 @@
 
 `text-inference-batcher` is a high-performance router optimized for maximum throughput in text inference workload.
 
+## Quick Start
+
+Quickly deploy two inference backend using [ialacol](https://github.com/chenhunghan/ialacol) in namespace `llm`.
+
+```sh
+helm repo add ialacol https://chenhunghan.github.io/ialacol
+helm repo update
+# the classic llama-2 13B
+helm install llama-2 ialacol/ialacol \ 
+  --set deployment.env.DEFAULT_MODEL_HG_REPO_ID="" \
+  --set deployment.env.DEFAULT_MODEL_FILE="llama-2-13b-chat.ggmlv3.q4_0.bin" \
+  -n llm
+# orca mini fine-tuned llama-2 https://huggingface.co/psmathur/orca_mini_v3_13b
+helm install orca-mini ialacol/ialacol \
+  --set deployment.env.DEFAULT_MODEL_HG_REPO_ID="TheBloke/orca_mini_v3_13B-GGML" \
+  --set deployment.env.DEFAULT_MODEL_HG_REPO_ID="orca_mini_v3_13b.ggmlv3.q4_0.bin" \
+  -n llm
+# just another fine-tuned variant
+helm install stable-platypus2 ialacol/ialacol \
+  --set deployment.env.DEFAULT_MODEL_HG_REPO_ID="TheBloke/Stable-Platypus2-13B-GGML" \
+  --set deployment.env.DEFAULT_MODEL_HG_REPO_ID="stable-platypus2-13b.ggmlv3.q4_0.bin" \
+  -n llm
+```
+
+Add `text-inference-batcher` pointing to upstreams.
+
+```sh
+helm repo add text-inference-batcher <https://chenhunghan.github.io/text-inference-batcher>
+helm repo update
+helm install tib text-inference-batcher/text-inference-batcher-nodejs \
+  --set deployment.env.UPSTREAMS="http://llama-2:8000,http://orca-mini:8000,http://stable-platypus2:8000"
+  -n llm
+```
+
+Port forward `text-inference-batcher` for testing.
+
+```sh
+kubectl port-forward svc/tib 8000:8000 -n llm
+```
+
+Single gateway for all your inference backends
+
+```sh
+openai -k "sk-" -b http://localhost:8000/v1 -vv api chat_completions.create -m llama-2-13b-chat.ggmlv3.q4_0.bin -g user "Hello world!"
+openai -k "sk-" -b http://localhost:8000/v1 -vv api chat_completions.create -m orca_mini_v3_13b.ggmlv3.q4_0.bin -g user "Hello world!"
+openai -k "sk-" -b http://localhost:8000/v1 -vv api chat_completions.create -m stable-platypus2-13b.ggmlv3.q4_0.bin -g user "Hello world!"
+```
+
 ## Features
 
 - Max throughput by queuing, and continuous batching of incoming requests.

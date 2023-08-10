@@ -1,0 +1,38 @@
+replicas: 1
+
+deployment:
+  image: ghcr.io/chenhunghan/text-inference-batcher-nodejs:latest
+  env:
+    # upstream url separated by comman. e.g. "http://llama-2-7b-0:8000,http://llama-2-7b-1:8000,http://llama-2-13b-0:8000"
+    UPSTREAMS: ""
+    MAX_CONNECT_PER_UPSTREAM: 1
+resources:
+  {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+service:
+  type: ClusterIP
+  port: 8000
+  annotations: {}
+  # If using an AWS load balancer, you'll need to override the default 60s load balancer idle timeout
+  # service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: "1200"
+nodeSelector: {}
+tolerations: []
+  # e.g.
+  # - key: "computing"
+  #   operator: "Exists"
+  #   effect: "NoSchedule"
+affinity: {}
+  # e.g.
+  # nodeAffinity:
+  #   requiredDuringSchedulingIgnoredDuringExecution:
+  #     nodeSelectorTerms:
+  #     - matchExpressions:
+  #       - key: computing-lb
+  #         operator: In
+  #         values:
+  #         - "true"
