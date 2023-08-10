@@ -43,4 +43,4 @@ RUN --mount=type=cache,target=/tmp/.npm \
         --cache /tmp/.npm
 ENV NODE_ENV production
 EXPOSE 8000
-CMD ["node", "dist/index.js"]  
+CMD ["node", "apps/text-inference-batcher-nodejs/dist/index.js"]  
