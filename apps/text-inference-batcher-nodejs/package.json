@@ -13,9 +13,9 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@types/node": "^20.4.10",
     "@hono/node-server": "^1.0.1"
   },
   "devDependencies": {
+    "@types/node": "^20.4.10"
   }
 }
