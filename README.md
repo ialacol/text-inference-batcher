@@ -147,10 +147,13 @@ npm run dev
 
 ### Container Image
 
+```sh
+docker build --file ./apps/text-inference-batcher-nodejs/Dockerfile -t tib:latest .
+docker run --rm -p 8000:8000 tib:latest
+```
+
 Build, run and remove after it exits.
 
-#### node.js version
-
 ```sh
-docker run --rm -it $(docker build --file ./apps/text-inference-batcher-nodejs/Dockerfile -q .)
+docker run --rm -it -p 8000:8000 $(docker build --file ./apps/text-inference-batcher-nodejs/Dockerfile -q .)
 ```

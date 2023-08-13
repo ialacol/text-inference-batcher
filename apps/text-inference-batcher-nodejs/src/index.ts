@@ -198,3 +198,21 @@ serve({
 });
 
 console.log("Listening on http://localhost:8000");
+
+const signals: Record<string, number> = {
+  SIGHUP: 1,
+  SIGINT: 2,
+  SIGTERM: 15
+};
+
+const shutdown = (signal: string, value: number) => {
+  console.log(`server stopped by ${signal} with value ${value}`);
+  process.exit(128 + value);
+};
+
+Object.keys(signals).forEach((signal) => {
+  process.on(signal, () => {
+    console.log(`process received a ${signal} signal`);
+    shutdown(signal, signals[signal]);
+  });
+});
