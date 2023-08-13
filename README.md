@@ -4,6 +4,19 @@
 
 ## Quick Start
 
+### Run in Container
+
+There is an image host on [ghcr.io](https://github.com/chenhunghan/text-inference-batcher/pkgs/container/text-inference-batcher-nodejs)
+
+```sh
+export UPSTREAMS="http://localhost:8080,http://localhost:8081" # List of OpenAI-compatible upstreams separated by comma
+docker run --rm -it -p 8000:8000 -e UPSTREAMS=$UPSTREAMS ghcr.io/chenhunghan/text-inference-batcher-nodejs:latest # node.js version
+```
+
+### Kubernetes
+
+`text-inference-batcher` offers first class support for Kubernetes.
+
 Quickly deploy two inference backend using [ialacol](https://github.com/chenhunghan/ialacol) in namespace `llm`.
 
 ```sh
@@ -83,6 +96,16 @@ In addition to high throughput, as a router and load balancer in front of all th
 
 `text-inference-batcher` itself is written in TypeScript with an edge-first design. It can be deployed on Node.js, Cloudflare Workers, Fastly Compute@Edge, Deno, Bun, Lagon, and AWS Lambda.
 
+## Configuration
+
+The following environmental variables are available
+
+| Variable                   |  Description                                                     | Default            | Example                                          |
+| :------------------------- |  :-------------------------------------------------------------- | :----------------  | :----------------------------------------------- |
+| `UPSTREAMS`                |  A list of upstream, separated by comma.                         | ``                 | `http://llama-2:8000,http://falcon:8000`         |
+| `MAX_CONNECT_PER_UPSTREAM` |  The max number of connection per upstream                       | `1`                | `666`                                            |
+| `TIMEOUT`                  |  The timeout of connection to upstream in `ms`                   | `600000` (10 mins) | `60000` (1 min)                                  |
+
 ## Terminology
 
 ### Downstream
@@ -105,3 +128,29 @@ In short, `text-inference-batcher` is asynchronous by default. It finds a free a
   - The inference server returns a 5xx status code for requests sent to any other endpoint than `GET /models`. For example, if a request is sent to a inference server's `POST /completion` and the server returns a 500 status code, the upstream will be marked as unhealthy immediately and wait for the next round of health checks by the batcher.
 - How the batcher behaves with an unhealthy upstream:
   - The batcher continuously checks the healthiness of all inference servers (regardless of their health status) at a 10
+
+## Development
+
+The repo is a monorepo managed by [Turborepo](https://turbo.build/repo), applications such as nodejs version of `text-inference-batcher` are in `./apps/*`, packages are in `./packages/*`
+
+To install the dependencies
+
+```sh
+npm install
+```
+
+Start all applications in development mode
+
+```sh
+npm run dev
+```
+
+### Container Image
+
+Build, run and remove after it exits.
+
+#### node.js version
+
+```sh
+docker run --rm -it $(docker build --file ./apps/text-inference-batcher-nodejs/Dockerfile -q .)
+```
