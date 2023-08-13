@@ -3,19 +3,23 @@ import { type ListModelsResponse } from "openai-edge";
 
 export async function updateUpstreamState (urls: Set<URL>) {
   return Promise.allSettled(Array.from(urls).map(async (url) => {
+    console.group(`update upstream ${url.href} state`);
+    console.time(`updateUpstreamState(${url.href})`);
     const t0 = performance.now();
-    const [result] = await Promise.allSettled([fetch(`${url.href}/v1/models`)]);
+    console.info(`fetching ${url.href}v1/models`);
+    const [result] = await Promise.allSettled([fetch(`${url.href}v1/models`)]);
     const t1 = performance.now();
 
     // if fetch rejected, remove the url from the state
     if (result.status === "rejected") {
+      console.warn(`fetching ${url.href}v1/models failed, removing from upstreams`);
       spliceOneByIndex(findIndex(({ url: { href } }) => href === url.href));
     }
     if (result.status === "fulfilled") {
       // if upstream returns something else than 2xx, remove the url from the state
       if (!result.value.ok) {
+        console.warn(`fetching ${url.href}v1/models get ${result.value.status}/${result.value.statusText}, removing from upstreams`);
         spliceOneByIndex(findIndex(({ url: { href } }) => href === url.href));
-        return;
       }
       const response = result.value;
       const models: ListModelsResponse = await response.json();
@@ -23,7 +27,8 @@ export async function updateUpstreamState (urls: Set<URL>) {
         const modelId = model.id;
         const found = find(({ url: { href }, model }) => href === url.href && model === modelId);
         if (!found) {
-          push({
+          console.info(`model.id ${model.id} from ${url.href} not found, adding to upstream list`);
+          const upstream = {
             id: crypto.randomUUID(),
             url,
             // the bin filename if the upstream is ialacol
@@ -33,9 +38,13 @@ export async function updateUpstreamState (urls: Set<URL>) {
             last: null,
             connections: 0,
             used: 0
-          });
+          };
+          push(upstream);
+          console.table(upstream);
         }
       }
     }
+    console.timeEnd(`updateUpstreamState(${url.href})`);
+    console.groupEnd();
   }));
 }

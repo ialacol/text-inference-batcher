@@ -17,8 +17,10 @@ app.post("/v1/completions", async (context) => {
   const completionRequestBody: CreateCompletionRequest = await context.req.json();
 
   if (filterByModel(completionRequestBody.model).length === 0) {
+    const allModels = getAllModels().join(",");
+    console.error("no upstream found with model \"%s\", all available models: [%s]", completionRequestBody.model, allModels);
     // https://platform.openai.com/docs/guides/error-codes/api-errors
-    throw new HTTPException(503, { message: `No upstream found with ${completionRequestBody.model}, all available models: ${getAllModels().join(",")}.` });
+    throw new HTTPException(422, { message: `No upstream found with ${completionRequestBody.model}, all available models: ${allModels}.` });
   }
   const { MAX_CONNECT_PER_UPSTREAM, TIMEOUT } = env<{ MAX_CONNECT_PER_UPSTREAM?: string, TIMEOUT: string }>(context);
   const maxConnection = parseInt(MAX_CONNECT_PER_UPSTREAM ?? "1");
@@ -33,6 +35,7 @@ app.post("/v1/completions", async (context) => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
     waiting += 1000;
     if (waiting >= timeout) {
+      console.error("Timeout waiting for a free upstream");
       throw new HTTPException(503, { message: "Timeout waiting for a free upstream, try again later" });
     }
   }
@@ -54,7 +57,7 @@ app.post("/v1/completions", async (context) => {
       try {
         const apiKeyHeader = context.req.header("OPENAI_API_KEY");
         const configuration = new Configuration({
-          basePath: `${selectedUpstream.url.href}/v1`,
+          basePath: `${selectedUpstream.url.href}v1`,
           apiKey: apiKeyHeader
         });
         const openai = new OpenAIApi(configuration);
@@ -107,8 +110,10 @@ app.post("/v1/chat/completions", async (context) => {
   const chatCompletionRequestBody: CreateChatCompletionRequest = await context.req.json();
 
   if (filterByModel(chatCompletionRequestBody.model).length === 0) {
+    const allModels = getAllModels().join(",");
+    console.error("no upstream found with model \"%s\", all available models: [%s]", chatCompletionRequestBody.model, allModels);
     // https://platform.openai.com/docs/guides/error-codes/api-errors
-    throw new HTTPException(503, { message: `No upstream found with ${chatCompletionRequestBody.model}, all available models: ${getAllModels().join(",")}.` });
+    throw new HTTPException(422, { message: `No upstream found with ${chatCompletionRequestBody.model}, all available models: ${getAllModels().join(",")}.` });
   }
   const { MAX_CONNECT_PER_UPSTREAM, TIMEOUT } = env<{ MAX_CONNECT_PER_UPSTREAM?: string, TIMEOUT: string }>(context);
   const maxConnection = parseInt(MAX_CONNECT_PER_UPSTREAM ?? "1");
@@ -144,7 +149,7 @@ app.post("/v1/chat/completions", async (context) => {
       try {
         const apiKeyHeader = context.req.header("OPENAI_API_KEY");
         const configuration = new Configuration({
-          basePath: `${selectedUpstream.url.href}/v1`,
+          basePath: `${selectedUpstream.url.href}v1`,
           apiKey: apiKeyHeader
         });
         const openai = new OpenAIApi(configuration);
@@ -197,7 +202,7 @@ serve({
   port: 8000
 });
 
-console.log("Listening on http://localhost:8000");
+console.log("listening on http://localhost:8000");
 
 const signals: Record<string, number> = {
   SIGHUP: 1,
