@@ -4,70 +4,59 @@ import { logger } from "hono/logger";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { OpenAIApi, Configuration, type CreateCompletionRequest, CreateChatCompletionRequest } from "openai-edge";
-import { parseUpstreamUrls } from "./parseUpstreamUrls.js";
+import { parseUpstreams } from "./parseUpstreams.js";
 import { updateUpstreamState } from "./updateUpstreamState.js";
-import { filterByModel, getLeastConnection, findIndex, updateByIndex, findByIndex, type Upstream, getAllModels } from "./globalState.js";
+import * as state from "./globalState.js";
+import { type Upstream } from "./globalState.js";
 import { env } from "hono/adapter";
+import { waitOrThrow } from "./waitOrThrow.js";
+import { getLeastLatency } from "./getLeastLatency.js";
 
 const app = new Hono();
 app.use("*", logger(), cors());
 
 app.post("/v1/completions", async (context) => {
-  await updateUpstreamState(parseUpstreamUrls(context));
+  const DEBUG = env<{ DEBUG?: string }>(context)?.DEBUG === "true";
+
+  const urls = parseUpstreams(env<{ UPSTREAMS?: string }>(context)?.UPSTREAMS);
+  await updateUpstreamState(urls);
   const completionRequestBody: CreateCompletionRequest = await context.req.json();
 
-  if (filterByModel(completionRequestBody.model).length === 0) {
-    const allModels = getAllModels().join(",");
-    console.error("no upstream found with model \"%s\", all available models: [%s]", completionRequestBody.model, allModels);
+  const model = completionRequestBody.model;
+
+  if (state.filterByModel(model).length === 0) {
+    const allModels = state.getAllModels().join(",");
+    console.error("no upstream found with model \"%s\", all available models: [%s]", model, allModels);
     // https://platform.openai.com/docs/guides/error-codes/api-errors
-    throw new HTTPException(422, { message: `No upstream found with ${completionRequestBody.model}, all available models: ${allModels}.` });
+    throw new HTTPException(422, { message: `No upstream found with ${model}, all available models: ${allModels}.` });
   }
-  const { MAX_CONNECT_PER_UPSTREAM, TIMEOUT } = env<{ MAX_CONNECT_PER_UPSTREAM?: string, TIMEOUT: string }>(context);
-  const maxConnection = parseInt(MAX_CONNECT_PER_UPSTREAM ?? "1");
-  // timeout in milliseconds, default to 10 minutes
-  const timeout = parseInt(TIMEOUT ?? "600000");
-  let waiting = 0;
-  // keep waiting if there is no free (connections < MAX_CONNECT_PER_UPSTREAM) upstream with the matching model
-  while (
-    filterByModel(completionRequestBody.model)
-      .filter(({ connections }) => connections < maxConnection).length === 0
-  ) {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    waiting += 1000;
-    if (waiting >= timeout) {
-      console.error("Timeout waiting for a free upstream");
-      throw new HTTPException(503, { message: "Timeout waiting for a free upstream, try again later" });
-    }
-  }
+  const { MAX_CONNECT_PER_UPSTREAM, TIMEOUT } = env<{ MAX_CONNECT_PER_UPSTREAM?: string, TIMEOUT?: string }>(context);
+  await waitOrThrow(model, MAX_CONNECT_PER_UPSTREAM, TIMEOUT);
 
-  // "least connections" load balancing
-  const leastConnectionUpstream = getLeastConnection(completionRequestBody.model);
-
-  // select the way with the least latency
-  const selectedUpstream = leastConnectionUpstream.reduce((accumulator, currentValue) => {
-    if (currentValue.latency < accumulator.latency) {
-      return currentValue;
-    }
-    return accumulator;
-  });
+  // "least connections"/"least latency" load balancing
+  const selectedUpstream = state.getLeastConnection(model).reduce(getLeastLatency);
+  console.info("selected upstream: %s for model: %s", selectedUpstream.url.href, model);
 
   const { signal, abort } = new AbortController();
   return new Response(new ReadableStream({
     async start (controller) {
       try {
-        const apiKeyHeader = context.req.header("OPENAI_API_KEY");
         const configuration = new Configuration({
           basePath: `${selectedUpstream.url.href}v1`,
-          apiKey: apiKeyHeader
+          apiKey: context.req.header("OPENAI_API_KEY")
         });
         const openai = new OpenAIApi(configuration);
-        const index = findIndex(({ id }) => id === selectedUpstream.id);
-        updateByIndex(index, {
+        const index = state.findIndex(({ id }) => id === selectedUpstream.id);
+        state.updateByIndex(index, {
           ...selectedUpstream,
           last: new Date(),
           used: selectedUpstream.used + 1,
           connections: selectedUpstream.connections + 1
         });
+        if (DEBUG) {
+          // log the upstream state before the request
+          console.table(state.findByIndex(index));
+        }
         const { body } = await openai.createCompletion(completionRequestBody, { signal });
         if (body === null) {
           controller.close();
@@ -83,12 +72,16 @@ app.post("/v1/completions", async (context) => {
         controller.error(error);
       }
       // reduce the number of connections
-      const index = findIndex(({ id }) => id === selectedUpstream.id);
-      const before = findByIndex(index) as Upstream;
-      updateByIndex(index, {
+      const index = state.findIndex(({ id }) => id === selectedUpstream.id);
+      const before = state.findByIndex(index) as Upstream;
+      state.updateByIndex(index, {
         ...before,
         connections: before.connections - 1
       });
+      if (DEBUG) {
+        // log the upstream state after the request
+        console.table(state.findByIndex(index));
+      }
     },
     cancel () {
       // This is called if the downstream cancels,
@@ -106,60 +99,48 @@ app.post("/v1/completions", async (context) => {
 });
 
 app.post("/v1/chat/completions", async (context) => {
-  await updateUpstreamState(parseUpstreamUrls(context));
+  const DEBUG = env<{ DEBUG?: string }>(context)?.DEBUG === "true";
+
+  const urls = parseUpstreams(env<{ UPSTREAMS?: string }>(context)?.UPSTREAMS);
+  await updateUpstreamState(urls);
   const chatCompletionRequestBody: CreateChatCompletionRequest = await context.req.json();
 
-  if (filterByModel(chatCompletionRequestBody.model).length === 0) {
-    const allModels = getAllModels().join(",");
-    console.error("no upstream found with model \"%s\", all available models: [%s]", chatCompletionRequestBody.model, allModels);
+  const model = chatCompletionRequestBody.model;
+
+  if (state.filterByModel(model).length === 0) {
+    const allModels = state.getAllModels().join(",");
+    console.error("no upstream found with model \"%s\", all available models: [%s]", model, allModels);
     // https://platform.openai.com/docs/guides/error-codes/api-errors
-    throw new HTTPException(422, { message: `No upstream found with ${chatCompletionRequestBody.model}, all available models: ${getAllModels().join(",")}.` });
+    throw new HTTPException(422, { message: `No upstream found with ${model}, all available models: ${allModels}.` });
   }
-  const { MAX_CONNECT_PER_UPSTREAM, TIMEOUT } = env<{ MAX_CONNECT_PER_UPSTREAM?: string, TIMEOUT: string }>(context);
-  const maxConnection = parseInt(MAX_CONNECT_PER_UPSTREAM ?? "1");
-  // timeout in milliseconds, default to 10 minutes
-  const timeout = parseInt(TIMEOUT ?? "600000");
-  let waiting = 0;
-  // keep waiting if there is no free (connections < MAX_CONNECT_PER_UPSTREAM) upstream with the matching model
-  while (
-    filterByModel(chatCompletionRequestBody.model)
-      .filter(({ connections }) => connections < maxConnection).length === 0
-  ) {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    waiting += 1000;
-    if (waiting >= timeout) {
-      throw new HTTPException(503, { message: "Timeout waiting for a free upstream, try again later" });
-    }
-  }
+  const { MAX_CONNECT_PER_UPSTREAM, TIMEOUT } = env<{ MAX_CONNECT_PER_UPSTREAM?: string, TIMEOUT?: string }>(context);
+  await waitOrThrow(model, MAX_CONNECT_PER_UPSTREAM, TIMEOUT);
 
-  // "least connections" load balancing
-  const leastConnectionUpstream = getLeastConnection(chatCompletionRequestBody.model);
-
-  // select the way with the least latency
-  const selectedUpstream = leastConnectionUpstream.reduce((accumulator, currentValue) => {
-    if (currentValue.latency < accumulator.latency) {
-      return currentValue;
-    }
-    return accumulator;
-  });
+  // "least connections"/"least latency" load balancing
+  const selectedUpstream = state.getLeastConnection(model).reduce(getLeastLatency);
+  console.info("selected upstream: %s for model: %s", selectedUpstream.url.href, model);
 
   const { signal, abort } = new AbortController();
+
   return new Response(new ReadableStream({
     async start (controller) {
       try {
-        const apiKeyHeader = context.req.header("OPENAI_API_KEY");
         const configuration = new Configuration({
           basePath: `${selectedUpstream.url.href}v1`,
-          apiKey: apiKeyHeader
+          apiKey: context.req.header("OPENAI_API_KEY")
         });
         const openai = new OpenAIApi(configuration);
-        const index = findIndex(({ id }) => id === selectedUpstream.id);
-        updateByIndex(index, {
+        const index = state.findIndex(({ id }) => id === selectedUpstream.id);
+        state.updateByIndex(index, {
           ...selectedUpstream,
           last: new Date(),
           used: selectedUpstream.used + 1,
           connections: selectedUpstream.connections + 1
         });
+        if (DEBUG) {
+          // log the upstream state before the request
+          console.table(state.findByIndex(index));
+        }
         const { body } = await openai.createChatCompletion(chatCompletionRequestBody, { signal });
         if (body === null) {
           controller.close();
@@ -175,12 +156,16 @@ app.post("/v1/chat/completions", async (context) => {
         controller.error(error);
       }
       // reduce the number of connections
-      const index = findIndex(({ id }) => id === selectedUpstream.id);
-      const before = findByIndex(index) as Upstream;
-      updateByIndex(index, {
+      const index = state.findIndex(({ id }) => id === selectedUpstream.id);
+      const before = state.findByIndex(index) as Upstream;
+      state.updateByIndex(index, {
         ...before,
         connections: before.connections - 1
       });
+      if (DEBUG) {
+        // log the upstream state after the request
+        console.table(state.findByIndex(index));
+      }
     },
     cancel () {
       // This is called if the downstream cancels,
@@ -203,6 +188,13 @@ serve({
 });
 
 console.log("listening on http://localhost:8000");
+
+if (process.env.UPSTREAMS) {
+  const urls = parseUpstreams(process.env.UPSTREAMS);
+  updateUpstreamState(urls).catch((error) => {
+    console.error(error);
+  });
+}
 
 const signals: Record<string, number> = {
   SIGHUP: 1,

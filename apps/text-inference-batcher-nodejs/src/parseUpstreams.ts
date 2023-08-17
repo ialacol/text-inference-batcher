@@ -1,12 +1,8 @@
-import { type Context } from "hono";
-import { env } from "hono/adapter";
-
 /**
  * Parses the env.UPSTREAMS variable and returns a set of URLs
  * @returns set of upstream URLs or throws if env.UPSTREAMS is not defined or invalid
  */
-export function parseUpstreamUrls (context: Context): Set<URL> | never {
-  const { UPSTREAMS } = env<{ UPSTREAMS?: string }>(context);
+export function parseUpstreams (UPSTREAMS?: string): Set<URL> | never {
   if (!UPSTREAMS) {
     throw new Error("env.UPSTREAMS is missing");
   }
