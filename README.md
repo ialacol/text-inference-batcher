@@ -102,9 +102,11 @@ The following environmental variables are available
 
 | Variable                   |  Description                                                     | Default            | Example                                          |
 | :------------------------- |  :-------------------------------------------------------------- | :----------------  | :----------------------------------------------- |
-| `UPSTREAMS`                |  A list of upstream, separated by comma.                         | ``                 | `http://llama-2:8000,http://falcon:8000`         |
+| `UPSTREAMS`                |  A list of upstream, separated by comma.                         | `null`             | `http://llama-2:8000,http://falcon:8000`         |
 | `MAX_CONNECT_PER_UPSTREAM` |  The max number of connection per upstream                       | `1`                | `666`                                            |
+| `WAIT_FOR`                 |  The duration to wait for an upstream to become ready in `ms`    | `5000` (5 secs)    | `30000` (30 seconds)                             |
 | `TIMEOUT`                  |  The timeout of connection to upstream in `ms`                   | `600000` (10 mins) | `60000` (1 min)                                  |
+| `DEBUG`                    |  Verbose logging                                                 | `false`            | `true`                                           |
 
 ## Terminology
 
