@@ -7,7 +7,13 @@ export async function updateUpstreamState (urls: Set<URL>) {
     console.time(`updateUpstreamState(${url.href})`);
     const t0 = performance.now();
     console.info(`fetching ${url.href}v1/models`);
-    const [result] = await Promise.allSettled([fetch(`${url.href}v1/models`)]);
+    const controller = new AbortController();
+    // abort the /models after 5 seconds timeout
+    const id = setTimeout(() => controller.abort(), 5000);
+    const [result] = await Promise.allSettled([fetch(`${url.href}v1/models`, {
+      signal: controller.signal
+    })]);
+    clearTimeout(id);
     const t1 = performance.now();
 
     // if fetch rejected, remove the url from the state
