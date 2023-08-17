@@ -18,8 +18,6 @@ app.use("*", logger(), cors());
 app.post("/v1/completions", async (context) => {
   const DEBUG = env<{ DEBUG?: string }>(context)?.DEBUG === "true";
 
-  const urls = parseUpstreams(env<{ UPSTREAMS?: string }>(context)?.UPSTREAMS);
-  await updateUpstreamState(urls);
   const completionRequestBody: CreateCompletionRequest = await context.req.json();
 
   const model = completionRequestBody.model;
@@ -67,6 +65,8 @@ app.post("/v1/completions", async (context) => {
             controller.enqueue(chunk);
           }
           controller.close();
+          const urls = parseUpstreams(env<{ UPSTREAMS?: string }>(context)?.UPSTREAMS);
+          await updateUpstreamState(urls);
         }
       } catch (error) {
         controller.error(error);
@@ -101,8 +101,6 @@ app.post("/v1/completions", async (context) => {
 app.post("/v1/chat/completions", async (context) => {
   const DEBUG = env<{ DEBUG?: string }>(context)?.DEBUG === "true";
 
-  const urls = parseUpstreams(env<{ UPSTREAMS?: string }>(context)?.UPSTREAMS);
-  await updateUpstreamState(urls);
   const chatCompletionRequestBody: CreateChatCompletionRequest = await context.req.json();
 
   const model = chatCompletionRequestBody.model;
@@ -151,6 +149,8 @@ app.post("/v1/chat/completions", async (context) => {
             controller.enqueue(chunk);
           }
           controller.close();
+          const urls = parseUpstreams(env<{ UPSTREAMS?: string }>(context)?.UPSTREAMS);
+          await updateUpstreamState(urls);
         }
       } catch (error) {
         controller.error(error);
@@ -182,12 +182,21 @@ app.post("/v1/chat/completions", async (context) => {
   });
 });
 
+const port = parseInt(process.env.TIB_PORT ?? "8000");
 serve({
   fetch: app.fetch,
-  port: 8000
+  port
 });
 
-console.log("listening on http://localhost:8000");
+console.log(`\ntib is listening on http://localhost:${port}`);
+console.table({
+  UPSTREAMS: process.env.UPSTREAMS,
+  MAX_CONNECT_PER_UPSTREAM: process.env.MAX_CONNECT_PER_UPSTREAM,
+  WAIT_FOR: process.env.WAIT_FOR,
+  TIMEOUT: process.env.TIMEOUT,
+  DEBUG: process.env.DEBUG,
+  TIB_PORT: process.env.TIB_PORT
+});
 
 if (process.env.UPSTREAMS) {
   const urls = parseUpstreams(process.env.UPSTREAMS);

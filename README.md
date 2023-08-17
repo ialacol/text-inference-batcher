@@ -107,6 +107,7 @@ The following environmental variables are available
 | `WAIT_FOR`                 |  The duration to wait for an upstream to become ready in `ms`    | `5000` (5 secs)    | `30000` (30 seconds)                             |
 | `TIMEOUT`                  |  The timeout of connection to upstream in `ms`                   | `600000` (10 mins) | `60000` (1 min)                                  |
 | `DEBUG`                    |  Verbose logging                                                 | `false`            | `true`                                           |
+| `TIB_PORT`                 |  Listening port                                                  | `8000`             | `8889`                                           |
 
 ## Terminology
 
