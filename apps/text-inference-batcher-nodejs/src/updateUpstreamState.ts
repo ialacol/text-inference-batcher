@@ -1,11 +1,6 @@
 import { findIndex, spliceOneByIndex, find, push } from "./globalState.js";
 import { type OpenAI } from "openai";
 
-interface ListModelsResponse {
-  object: string;
-  data: Array<OpenAI.Model>;
-}
-
 export async function updateUpstreamState(urls: Set<URL>) {
   return Promise.allSettled(
     Array.from(urls).map(async (url) => {
@@ -38,7 +33,10 @@ export async function updateUpstreamState(urls: Set<URL>) {
           spliceOneByIndex(findIndex(({ url: { href } }) => href === url.href));
         }
         const response = result.value;
-        const models: ListModelsResponse = await response.json();
+        const models: {
+          object: string;
+          data: Array<OpenAI.Model>;
+        } = await response.json();
         for (const model of models.data) {
           const modelId = model.id;
           const found = find(({ url: { href }, model }) => href === url.href && model === modelId);
@@ -46,7 +44,7 @@ export async function updateUpstreamState(urls: Set<URL>) {
             console.info(`model.id ${model.id} from ${url.href} not found, adding to upstream list`);
             const upstream = {
               id: crypto.randomUUID(),
-              url,
+              url: url,
               // the bin filename if the upstream is ialacol
               model: model.id,
               latency: t1 - t0,
@@ -56,7 +54,7 @@ export async function updateUpstreamState(urls: Set<URL>) {
               used: 0,
             };
             push(upstream);
-            console.table(upstream);
+            console.table({ ...upstream, url: url.origin });
           }
         }
       }

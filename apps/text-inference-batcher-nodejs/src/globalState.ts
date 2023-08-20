@@ -75,3 +75,5 @@ export const getLeastConnection = (model: string): UpstreamState => {
  * @returns all upstream models
  */
 export const getAllModels = () => upstreamState.map(({ model }) => model);
+
+export const reset = () => upstreamState.splice(0, upstreamState.length);

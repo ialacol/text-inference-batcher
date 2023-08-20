@@ -1,6 +1,4 @@
 import { Hono } from "hono";
-import { logger } from "hono/logger";
-import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { type OpenAI } from "openai";
 import { parseUpstreams } from "./parseUpstreams.js";
@@ -12,7 +10,6 @@ import { waitOrThrow } from "./waitOrThrow.js";
 import { leastLatency } from "./leastLatency.js";
 
 const app = new Hono();
-app.use("*", logger(), cors());
 
 app.post("/v1/completions", async (context) => {
   const DEBUG = env<{ DEBUG?: string }>(context)?.DEBUG === "true";
@@ -55,7 +52,6 @@ app.post("/v1/completions", async (context) => {
             // log the upstream state before the request
             console.table(state.findByIndex(index));
           }
-
           const { body } = await fetch(`${selectedUpstream.url.href}v1/completions`, {
             method: "POST",
             headers: {
@@ -100,7 +96,8 @@ app.post("/v1/completions", async (context) => {
       headers: {
         "Cache-Control": "no-store",
         Connection: "keep-alive",
-        "Content-Type": "text/event-stream",
+        "Content-Type": completionRequestBody.stream ? "text/event-stream" : "application/json",
+        "X-Upstream-Origin": selectedUpstream.url.origin,
       },
     },
   );
@@ -129,7 +126,7 @@ app.post("/v1/chat/completions", async (context) => {
 
   // "least connections"/"least latency" load balancing
   const selectedUpstream = state.getLeastConnection(model).reduce(leastLatency);
-  console.info("selected upstream: %s for model: %s", selectedUpstream.url.href, model);
+  console.info("selected upstream: %s for model: %s", selectedUpstream.url.origin, model);
 
   const { signal, abort } = new AbortController();
 
@@ -192,7 +189,8 @@ app.post("/v1/chat/completions", async (context) => {
       headers: {
         "Cache-Control": "no-store",
         Connection: "keep-alive",
-        "Content-Type": "text/event-stream",
+        "Content-Type": chatCompletionRequestBody.stream ? "text/event-stream" : "application/json",
+        "X-Upstream-Origin": selectedUpstream.url.origin,
       },
     },
   );
