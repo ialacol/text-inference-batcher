@@ -43,5 +43,3 @@ Object.keys(signals).forEach((signal) => {
     shutdown(signal, signals[signal]);
   });
 });
-
-export { app };

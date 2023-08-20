@@ -1,5 +1,10 @@
 import { findIndex, spliceOneByIndex, find, push } from "./globalState.js";
-import { type ListModelsResponse } from "openai-edge";
+import { type OpenAI } from "openai";
+
+interface ListModelsResponse {
+  object: string;
+  data: Array<OpenAI.Model>;
+}
 
 export async function updateUpstreamState(urls: Set<URL>) {
   return Promise.allSettled(

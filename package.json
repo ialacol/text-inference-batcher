@@ -16,10 +16,10 @@
     "test": "turbo test"
   },
   "dependencies": {
-    "hono": "^3.3.4",
-    "openai-edge": "^1.2.2"
+    "hono": "^3.3.4"
   },
   "devDependencies": {
+    "openai": "^4.0.1",
     "@typescript-eslint/eslint-plugin": "^5.60.1",
     "@typescript-eslint/parser": "^5.60.1",
     "eslint": "^8.44.0",

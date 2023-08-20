@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
-import { OpenAIApi, Configuration, type CreateCompletionRequest, CreateChatCompletionRequest } from "openai-edge";
+import { type OpenAI } from "openai";
 import { parseUpstreams } from "./parseUpstreams.js";
 import { updateUpstreamState } from "./updateUpstreamState.js";
 import * as state from "./globalState.js";
@@ -17,7 +17,7 @@ app.use("*", logger(), cors());
 app.post("/v1/completions", async (context) => {
   const DEBUG = env<{ DEBUG?: string }>(context)?.DEBUG === "true";
 
-  const completionRequestBody: CreateCompletionRequest = await context.req.json();
+  const completionRequestBody: OpenAI.Completions.CompletionCreateParams = await context.req.json();
 
   const model = completionRequestBody.model;
 
@@ -44,11 +44,6 @@ app.post("/v1/completions", async (context) => {
     new ReadableStream({
       async start(controller) {
         try {
-          const configuration = new Configuration({
-            basePath: `${selectedUpstream.url.href}v1`,
-            apiKey: context.req.header("OPENAI_API_KEY"),
-          });
-          const openai = new OpenAIApi(configuration);
           const index = state.findIndex(({ id }) => id === selectedUpstream.id);
           state.updateByIndex(index, {
             ...selectedUpstream,
@@ -60,19 +55,24 @@ app.post("/v1/completions", async (context) => {
             // log the upstream state before the request
             console.table(state.findByIndex(index));
           }
-          const { body } = await openai.createCompletion(completionRequestBody, { signal });
-          if (body === null) {
-            controller.close();
-          } else {
-            // Needs this to work around that ts thinks that ReadableStream is not an AsyncGenerator
-            // https://github.com/DefinitelyTyped/DefinitelyTyped/discussions/62651
-            for await (const chunk of body as unknown as AsyncGenerator<Uint8Array>) {
-              controller.enqueue(chunk);
-            }
-            controller.close();
-            const urls = parseUpstreams(env<{ UPSTREAMS?: string }>(context)?.UPSTREAMS);
-            await updateUpstreamState(urls);
+
+          const { body } = await fetch(`${selectedUpstream.url.href}v1/completions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${context.req.headers.get("Authorization")}`,
+            },
+            body: JSON.stringify(completionRequestBody),
+            signal,
+          });
+          // Needs this to work around that ts thinks that ReadableStream is not an AsyncGenerator
+          // https://github.com/DefinitelyTyped/DefinitelyTyped/discussions/62651
+          for await (const chunk of body as unknown as AsyncGenerator<Uint8Array>) {
+            controller.enqueue(chunk);
           }
+          controller.close();
+          const urls = parseUpstreams(env<{ UPSTREAMS?: string }>(context)?.UPSTREAMS);
+          await updateUpstreamState(urls);
         } catch (error) {
           controller.error(error);
         }
@@ -89,9 +89,10 @@ app.post("/v1/completions", async (context) => {
         }
       },
       cancel() {
+        console.info("Client closed the connection, aborting the request to the upstream.");
         // This is called if the downstream cancels,
-        // so we should stop the `openai.createCompletion` request to the upstream
-        abort();
+        abort("Client closed the connection.");
+        console.info("Request to upstream closed.");
       },
     }),
     {
@@ -108,7 +109,7 @@ app.post("/v1/completions", async (context) => {
 app.post("/v1/chat/completions", async (context) => {
   const DEBUG = env<{ DEBUG?: string }>(context)?.DEBUG === "true";
 
-  const chatCompletionRequestBody: CreateChatCompletionRequest = await context.req.json();
+  const chatCompletionRequestBody: OpenAI.Chat.CompletionCreateParams = await context.req.json();
 
   const model = chatCompletionRequestBody.model;
 
@@ -136,11 +137,6 @@ app.post("/v1/chat/completions", async (context) => {
     new ReadableStream({
       async start(controller) {
         try {
-          const configuration = new Configuration({
-            basePath: `${selectedUpstream.url.href}v1`,
-            apiKey: context.req.header("OPENAI_API_KEY"),
-          });
-          const openai = new OpenAIApi(configuration);
           const index = state.findIndex(({ id }) => id === selectedUpstream.id);
           state.updateByIndex(index, {
             ...selectedUpstream,
@@ -152,19 +148,23 @@ app.post("/v1/chat/completions", async (context) => {
             // log the upstream state before the request
             console.table(state.findByIndex(index));
           }
-          const { body } = await openai.createChatCompletion(chatCompletionRequestBody, { signal });
-          if (body === null) {
-            controller.close();
-          } else {
-            // Needs this to work around that ts thinks that ReadableStream is not an AsyncGenerator
-            // https://github.com/DefinitelyTyped/DefinitelyTyped/discussions/62651
-            for await (const chunk of body as unknown as AsyncGenerator<Uint8Array>) {
-              controller.enqueue(chunk);
-            }
-            controller.close();
-            const urls = parseUpstreams(env<{ UPSTREAMS?: string }>(context)?.UPSTREAMS);
-            await updateUpstreamState(urls);
+          const { body } = await fetch(`${selectedUpstream.url.href}v1/chat/completions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${context.req.headers.get("Authorization")}`,
+            },
+            body: JSON.stringify(chatCompletionRequestBody),
+            signal,
+          });
+          // Needs this to work around that ts thinks that ReadableStream is not an AsyncGenerator
+          // https://github.com/DefinitelyTyped/DefinitelyTyped/discussions/62651
+          for await (const chunk of body as unknown as AsyncGenerator<Uint8Array>) {
+            controller.enqueue(chunk);
           }
+          controller.close();
+          const urls = parseUpstreams(env<{ UPSTREAMS?: string }>(context)?.UPSTREAMS);
+          await updateUpstreamState(urls);
         } catch (error) {
           controller.error(error);
         }
@@ -181,9 +181,10 @@ app.post("/v1/chat/completions", async (context) => {
         }
       },
       cancel() {
+        console.info("Client closed the connection, aborting the request to the upstream.");
         // This is called if the downstream cancels,
-        // so we should stop the `openai.createCompletion` request to the upstream
-        abort();
+        abort("Client closed the connection.");
+        console.info("Request to upstream closed.");
       },
     }),
     {

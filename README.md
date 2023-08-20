@@ -78,7 +78,7 @@ openai -k "sk-" -b http://localhost:8000/v1 -vv api chat_completions.create -m s
 - Automatically discovers and indexes all available models from upstreams, routing requests to the appropriate destination. Trying multiple models simultaneously with a single entrypoint!
 - Transparent operation, optimizing only for throughput without modifying or altering requests. No intermediate components to debug.
 - Edge-first design, compatible with Node.js, Cloudflare Workers, Fastly Compute@Edge, Deno, Bun, Lagon, and AWS Lambda.
-- Lightweight with minimal dependencies, including [hono](https://github.com/honojs/hono) and [openai-edge](https://github.com/dan-kwiat/openai-edge).
+- Lightweight with minimal dependencies, including [hono](https://github.com/honojs/hono) and [openai-node](https://github.com/openai/openai-node).
 - Designed with streaming in mind, providing a great user experience.
 
 ## Rationale
