@@ -5,6 +5,8 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
+    "test": "node --loader tsx --test src/*.test.ts",
+    "test:watch": "node --loader tsx --test --watch src/*.test.ts",
     "lint": "eslint **/*.ts",
     "build": "tsc"
   },

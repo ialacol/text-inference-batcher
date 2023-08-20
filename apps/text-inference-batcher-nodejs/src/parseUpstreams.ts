@@ -11,6 +11,12 @@ export function parseUpstreams(UPSTREAMS?: string): Set<URL> | never {
   for (const upstream of upstreams) {
     try {
       const upstreamUrl = new URL(upstream);
+      if (upstreamUrl.protocol !== "http:" && upstreamUrl.protocol !== "https:") {
+        throw new Error(`${upstreamUrl.protocol}// is not supported`);
+      }
+      if (upstreamUrl.pathname !== "/") {
+        throw new Error(`should not has pathname:${upstreamUrl.pathname}`);
+      }
       urls.add(upstreamUrl);
     } catch (error) {
       // URL constructor throws if the URL is invalid

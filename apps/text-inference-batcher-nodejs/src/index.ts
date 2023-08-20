@@ -10,7 +10,7 @@ import * as state from "./globalState.js";
 import { type Upstream } from "./globalState.js";
 import { env } from "hono/adapter";
 import { waitOrThrow } from "./waitOrThrow.js";
-import { getLeastLatency } from "./getLeastLatency.js";
+import { leastLatency } from "./leastLatency.js";
 
 const app = new Hono();
 app.use("*", logger(), cors());
@@ -37,7 +37,7 @@ app.post("/v1/completions", async (context) => {
   await waitOrThrow(model, MAX_CONNECT_PER_UPSTREAM, TIMEOUT);
 
   // "least connections"/"least latency" load balancing
-  const selectedUpstream = state.getLeastConnection(model).reduce(getLeastLatency);
+  const selectedUpstream = state.getLeastConnection(model).reduce(leastLatency);
   console.info("selected upstream: %s for model: %s", selectedUpstream.url.href, model);
 
   const { signal, abort } = new AbortController();
@@ -128,7 +128,7 @@ app.post("/v1/chat/completions", async (context) => {
   await waitOrThrow(model, MAX_CONNECT_PER_UPSTREAM, TIMEOUT);
 
   // "least connections"/"least latency" load balancing
-  const selectedUpstream = state.getLeastConnection(model).reduce(getLeastLatency);
+  const selectedUpstream = state.getLeastConnection(model).reduce(leastLatency);
   console.info("selected upstream: %s for model: %s", selectedUpstream.url.href, model);
 
   const { signal, abort } = new AbortController();
