@@ -1,6 +1,6 @@
 import { leastConnection } from "./leastConnection.js";
 
-export const upstreamState = new Array<{
+const upstreamState = new Array<{
   /** the id of the upstream backend */
   id: ReturnType<typeof crypto.randomUUID>;
   /** the url of the upstream */
@@ -68,7 +68,7 @@ export const findIndex = (predict: Parameters<UpstreamState["findIndex"]>[0]): n
  */
 export const getLeastConnection = (model: string): UpstreamState => {
   const filtered = filterByModel(model);
-  return filtered.reduce(leastConnection, [filtered[0]]);
+  return filtered.reduce(leastConnection, []);
 };
 
 /**

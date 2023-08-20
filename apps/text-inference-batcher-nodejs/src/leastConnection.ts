@@ -1,6 +1,6 @@
 import { Upstream } from "./globalState.js";
 
-export function leastConnection(accumulator: Upstream[], currentValue: Upstream) {
+export function leastConnection(accumulator: Upstream[], currentValue: Upstream): Upstream[] {
   if (accumulator.every(({ connections }) => connections > currentValue.connections)) {
     return [currentValue];
   }

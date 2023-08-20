@@ -1,5 +1,6 @@
 import { type Upstream } from "./globalState.js";
 import crypto from "crypto";
+import http from "http";
 
 export function getRandomUpstream(override: Partial<Upstream> = {}): Upstream {
   const port = crypto.randomInt(3000, 9999);
@@ -14,3 +15,12 @@ export function getRandomUpstream(override: Partial<Upstream> = {}): Upstream {
   };
   return { ...upstream, ...override };
 }
+
+export const startServer = (server: http.Server, port: number, hostname: string) => {
+  return new Promise((resolve, reject) => {
+    server.listen(port, hostname, () => {
+      resolve(server);
+    });
+    server.on("error", reject);
+  });
+};
