@@ -6,6 +6,10 @@
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": true
   },
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnType": false,
+  "files.eol": "\n",
   "eslint.validate": ["typescript", "typescriptreact", "javascript", "javascriptreact"],
   "files.insertFinalNewline": true
 }
