@@ -2,7 +2,7 @@
  * Parses the env.UPSTREAMS variable and returns a set of URLs
  * @returns set of upstream URLs or throws if env.UPSTREAMS is not defined or invalid
  */
-export function parseUpstreams (UPSTREAMS?: string): Set<URL> | never {
+export function parseUpstreams(UPSTREAMS?: string): Set<URL> | never {
   if (!UPSTREAMS) {
     throw new Error("env.UPSTREAMS is missing");
   }
