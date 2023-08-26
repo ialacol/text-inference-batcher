@@ -1,4 +1,3 @@
-import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { type OpenAI } from "openai";
 import { parseUpstreams } from "./parseUpstreams.js";
@@ -8,19 +7,15 @@ import { type Upstream } from "./globalState.js";
 import { env } from "hono/adapter";
 import { waitOrThrow } from "./waitOrThrow.js";
 import { leastLatency } from "./leastLatency.js";
-import { completions } from "./completions.js";
+import { Context } from "hono";
 
-const app = new Hono();
-
-app.post("/v1/completions", completions);
-app.post("/v1/engines/:engine/completions", completions);
-
-app.post("/v1/chat/completions", async (context) => {
+export const completions = async (context: Context) => {
   const DEBUG = env<{ DEBUG?: string }>(context)?.DEBUG === "true";
 
-  const chatCompletionRequestBody: OpenAI.Chat.CompletionCreateParams = await context.req.json();
+  const completionRequestBody: OpenAI.Completions.CompletionCreateParams = await context.req.json();
 
-  const model = chatCompletionRequestBody.model;
+  const engine = context.req.param()?.engine;
+  const model = completionRequestBody.model ?? context.req.param().engine;
 
   if (state.filterByModel(model).length === 0) {
     const allModels = state.getAllModels().join(",");
@@ -38,10 +33,9 @@ app.post("/v1/chat/completions", async (context) => {
 
   // "least connections"/"least latency" load balancing
   const selectedUpstream = state.getLeastConnection(model).reduce(leastLatency);
-  console.info("selected upstream: %s for model: %s", selectedUpstream.url.origin, model);
+  console.info("selected upstream: %s for model: %s", selectedUpstream.url.href, model);
 
   const { signal, abort } = new AbortController();
-
   return new Response(
     new ReadableStream({
       async start(controller) {
@@ -57,13 +51,16 @@ app.post("/v1/chat/completions", async (context) => {
             // log the upstream state before the request
             console.table(state.findByIndex(index));
           }
-          const { body } = await fetch(`${selectedUpstream.url.href}v1/chat/completions`, {
+          const url = engine
+            ? `${selectedUpstream.url.href}v1/engines/${engine}/completions`
+            : `${selectedUpstream.url.href}v1/completions`;
+          const { body } = await fetch(url, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${context.req.headers.get("Authorization")}`,
             },
-            body: JSON.stringify(chatCompletionRequestBody),
+            body: JSON.stringify(completionRequestBody),
             signal,
           });
           // Needs this to work around that ts thinks that ReadableStream is not an AsyncGenerator
@@ -101,11 +98,9 @@ app.post("/v1/chat/completions", async (context) => {
       headers: {
         "Cache-Control": "no-store",
         Connection: "keep-alive",
-        "Content-Type": chatCompletionRequestBody.stream ? "text/event-stream" : "application/json",
+        "Content-Type": completionRequestBody.stream ? "text/event-stream" : "application/json",
         "X-Upstream-Origin": selectedUpstream.url.origin,
       },
     },
   );
-});
-
-export { app };
+};
