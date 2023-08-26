@@ -42,7 +42,7 @@ helm install stable-platypus2 ialacol/ialacol \
 Add `text-inference-batcher` pointing to upstreams.
 
 ```sh
-helm repo add text-inference-batcher <https://ialacol.github.io/text-inference-batcher>
+helm repo add text-inference-batcher https://ialacol.github.io/text-inference-batcher
 helm repo update
 helm install tib text-inference-batcher/text-inference-batcher-nodejs \
   --set deployment.env.UPSTREAMS="http://llama-2:8000,http://orca-mini:8000,http://stable-platypus2:8000"
