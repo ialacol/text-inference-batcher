@@ -6,11 +6,11 @@
 
 ### Run in Container
 
-There is an image host on [ghcr.io](https://github.com/chenhunghan/text-inference-batcher/pkgs/container/text-inference-batcher-nodejs)
+There is an image host on [ghcr.io](https://github.com/ialacol/text-inference-batcher/pkgs/container/text-inference-batcher-nodejs)
 
 ```sh
 export UPSTREAMS="http://localhost:8080,http://localhost:8081" # List of OpenAI-compatible upstreams separated by comma
-docker run --rm -it -p 8000:8000 -e UPSTREAMS=$UPSTREAMS ghcr.io/chenhunghan/text-inference-batcher-nodejs:latest # node.js version
+docker run --rm -it -p 8000:8000 -e UPSTREAMS=$UPSTREAMS ghcr.io/ialacol/text-inference-batcher-nodejs:latest # node.js version
 ```
 
 ### Kubernetes
@@ -42,7 +42,7 @@ helm install stable-platypus2 ialacol/ialacol \
 Add `text-inference-batcher` pointing to upstreams.
 
 ```sh
-helm repo add text-inference-batcher <https://chenhunghan.github.io/text-inference-batcher>
+helm repo add text-inference-batcher <https://ialacol.github.io/text-inference-batcher>
 helm repo update
 helm install tib text-inference-batcher/text-inference-batcher-nodejs \
   --set deployment.env.UPSTREAMS="http://llama-2:8000,http://orca-mini:8000,http://stable-platypus2:8000"
