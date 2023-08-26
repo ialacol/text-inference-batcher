@@ -1,6 +1,6 @@
 apiVersion: v2
-appVersion: 0.0.1
+appVersion: 0.0.2
 description: A Helm chart for text-inference-batcher with node.js runtime
 name: text-inference-batcher-nodejs
 type: application
-version: 0.0.1
+version: 0.0.2
