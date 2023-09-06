@@ -11,6 +11,7 @@ ports:
     protocol: TCP
 
 envVars:
+# upstream url separated by comman. e.g. "http://llama-2-7b-0:8000,http://llama-2-7b-1:8000,http://llama-2-13b-0:8000"
 - name: UPSTREAMS
   value: "http://test:8000"
 - name: MAX_CONNECT_PER_UPSTREAM
