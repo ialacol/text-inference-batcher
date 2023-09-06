@@ -3,4 +3,11 @@ appVersion: 0.0.3
 description: A Helm chart for text-inference-batcher with node.js runtime
 name: text-inference-batcher-nodejs
 type: application
-version: 0.0.3
+version: 1.0.3
+
+dependencies:
+  - name: helmet
+    version: 0.x.x
+    repository: https://companyinfo.github.io/helm-charts
+    import-values: # <== It is mandatory if you want to import the Helmet default values.
+      - defaults
